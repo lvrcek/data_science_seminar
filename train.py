@@ -120,8 +120,8 @@ def main():
                     iteration += 1
                     images = data['image'].to(device)
                     labels = data['label'].to(device).float()
-                    outputs = net(images)
-                    loss = criterion(outputs, labels).squeeze(-1)
+                    outputs = net(images).squeeze(-1)
+                    loss = criterion(outputs, labels)
                     total_loss += loss.item()
                     total += labels.size(0)
                     predicted = torch.sigmoid(outputs).round()
