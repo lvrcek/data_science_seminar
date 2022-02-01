@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torchvision.transforms as transforms
 
-import models
+from model import ResNet18
 from pileogram import PileogramDataset
 # import visualizer
 
@@ -62,12 +62,12 @@ def main():
     dl_val = DataLoader(ds_val, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
     dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
 
-    net = models.ResNet18(num_classes=2)
+    net = ResNet18(num_classes=2)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')  # Use cuda if possible
     # device = torch.device('cpu')  # Force using cpu
     print(f"Using device: {device}")
     net.to(device)
-    criterion = nn.BCELoss()
+    criterion = nn.BCEWithLogitsLoss()
     # optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = optim.Adam(net.parameters(), lr=1e-3)
     # optimizer = optim.RMSprop(net.parameters(), lr=3e-5)
@@ -89,7 +89,7 @@ def main():
                 inputs = data['image'].to(device, non_blocking=True)
                 labels = data['label'].to(device, non_blocking=True)
                 optimizer.zero_grad()
-                outputs = net(inputs)
+                outputs = net(inputs).squeeze(-1)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()

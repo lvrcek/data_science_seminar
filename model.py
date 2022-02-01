@@ -24,7 +24,7 @@ class ResNet18(nn.Module):
         self.model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         with torch.no_grad():
             self.model.conv1.weight[:, 0] = weight[:, 0]
-        self.model.fc = nn.Linear(512, num_classes, bias=True)
+        self.model.fc = nn.Linear(512, 1, bias=True)
 
     def forward(self, x):
         return self.model(x)
