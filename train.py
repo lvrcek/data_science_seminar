@@ -119,12 +119,13 @@ def main():
                 for data in dl_val:
                     iteration += 1
                     images = data['image'].to(device)
-                    labels = data['label'].to(device)
+                    labels = data['label'].to(device).float()
                     outputs = net(images)
                     loss = criterion(outputs, labels)
                     total_loss += loss.item()
-                    _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
+                    predicted = torch.sigmoid(outputs).round()
+                    # print(predicted)
                     correct += (predicted == labels).sum().item()
 
             accuracy = 100 * correct / total
@@ -153,15 +154,14 @@ def main():
     with torch.no_grad():
         for data in dl_test:
             images = data['image'].to(device, non_blocking=True)
-            labels = data['label'].to(device, non_blocking=True)
+            labels = data['label'].to(device, non_blocking=True).float()
             paths = data['path'][0]
             # print(paths)
             # print(type(paths))
             outputs = net(images)
-            _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
+            predicted = torch.sigmoid(outputs).round()
             correct += (predicted == labels).sum().item()
-
 
     eval_time_end = time()
     print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
