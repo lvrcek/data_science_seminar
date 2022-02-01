@@ -87,7 +87,7 @@ def main():
             for data in dl_train:
                 iteration += 1
                 inputs = data['image'].to(device, non_blocking=True)
-                labels = data['label'].to(device, non_blocking=True)
+                labels = data['label'].to(device, non_blocking=True).float()
                 optimizer.zero_grad()
                 outputs = net(inputs).squeeze(-1)
                 loss = criterion(outputs, labels)
@@ -96,7 +96,8 @@ def main():
                 # running_loss += loss.item()
                 total_loss += loss.item()
                 total += labels.size(0)
-                _, predicted = torch.max(outputs.data, 1)
+                predicted = torch.sigmoid(outputs).round()
+                # print(predicted)
                 correct += (predicted == labels).sum().item()
 
             # if i % 100 == 99:
