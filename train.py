@@ -121,7 +121,7 @@ def main():
                     images = data['image'].to(device)
                     labels = data['label'].to(device).float()
                     outputs = net(images)
-                    loss = criterion(outputs, labels)
+                    loss = criterion(outputs, labels).squeeze(-1)
                     total_loss += loss.item()
                     total += labels.size(0)
                     predicted = torch.sigmoid(outputs).round()
@@ -158,7 +158,7 @@ def main():
             paths = data['path'][0]
             # print(paths)
             # print(type(paths))
-            outputs = net(images)
+            outputs = net(images).squeeze(-1)
             total += labels.size(0)
             predicted = torch.sigmoid(outputs).round()
             correct += (predicted == labels).sum().item()
