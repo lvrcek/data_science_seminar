@@ -16,7 +16,7 @@ CHIMERIC_TRAIN = "./2d/chimeric"
 
 EPOCHS = 30
 BATCH = 128
-PARAM_PATH = 'trained_mnodels/params_res18_man_ef.pt'
+PARAM_PATH = 'trained_models/params_res18.pt'
 
 types = {
     0: 'RP',
@@ -40,11 +40,11 @@ def print_confusion(conf_rep, conf_chim, conf_norm, conf_junk):
           % (conf_junk[0], conf_junk[1], conf_junk[2], conf_junk[3]))
 
 
-def main():
+def train():
     start_time = time()
     torch.manual_seed(7)
     #np.random.seed(0)
-    mode = 'train'
+    mode = 'valid'
 
     transform = transforms.Compose([
         transforms.Grayscale(),
@@ -53,7 +53,8 @@ def main():
         transforms.Normalize([0.5], [0.5])
     ])
 
-    ds = PileogramDataset(NONCHIMERIC_TRAIN, CHIMERIC_TRAIN, transform=transform)
+    ds_full = PileogramDataset(NONCHIMERIC_TRAIN, CHIMERIC_TRAIN, transform=transform)
+    ds = ds_full[:5000]
     num_samples = len(ds)
     val_size = test_size = round(num_samples * 0.2)
     train_size = num_samples - val_size - test_size
@@ -178,6 +179,20 @@ def main():
 
     # print_confusion(conf_repeat, conf_chim, conf_regular, conf_junk)
 
+    ds_np = ds_full[5000:]
+
+    net.eval()
+    feature_extractor = torch.nn.Sequential(*list(net.children())[:-1])
+    for data in ds_np:
+        image = data['image'].to(device)
+        label = data['label'].to(device)
+        feature = feature_extractor(image)
+        print(image.shape)
+        print(type(label))
+        print(label.shape)
+
+    
 
 if __name__ == '__main__':
-    main()
+    train()
+    # extract()
