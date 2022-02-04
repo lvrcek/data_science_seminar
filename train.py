@@ -21,7 +21,7 @@ import joblib
 
 from model import ResNet18
 from pileogram import PileogramDataset
-# import visualizer
+import visualizer
 
 NONCHIMERIC_TRAIN = "./2d/nonchimeric"
 CHIMERIC_TRAIN = "./2d/chimeric"
@@ -159,8 +159,8 @@ def train():
 
         training_time = time()
         print(f"Finished Training. Training time: {training_time - start_time} s")
-#        visualizer.draw_training_curve(history_train, history_val)
-#        visualizer.draw_accuracy_curve(acc_train, acc_valid)
+        visualizer.draw_training_curve(history_train, history_val)
+        visualizer.draw_accuracy_curve(acc_train, acc_valid)
 
     correct = 0
     total = 0
