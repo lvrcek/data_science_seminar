@@ -26,7 +26,7 @@ import visualizer
 NONCHIMERIC_TRAIN = "./2d/nonchimeric"
 CHIMERIC_TRAIN = "./2d/chimeric"
 
-EPOCHS = 30
+EPOCHS = 50
 BATCH = 128
 PARAM_PATH = 'trained_models/params_res18.pt'
 TRAIN_SAMPLES = 8373
@@ -185,10 +185,6 @@ def train():
     #         predicted = torch.sigmoid(outputs).round()
     #         correct += (predicted == labels).sum().item()
 
-    eval_time_end = time()
-    print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
-    print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
-
     # conf_repeat = (sum([l == 0 for l in guess_repeat]), sum([l == 1 for l in guess_repeat]),
     #                sum([l == 2 for l in guess_repeat]), sum([l == 3 for l in guess_repeat]))
     # conf_chim = (sum([l == 0 for l in guess_chim]), sum([l == 1 for l in guess_chim]),
@@ -219,6 +215,10 @@ def train():
             total += labels.size(0)
             predicted = torch.sigmoid(outputs).round()
             correct += (predicted == labels).sum().item()
+
+    eval_time_end = time()
+    print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
+    print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
 
     # Just translate all the descriptors into numpy
     # This is very slow, I should find a better way to do it
