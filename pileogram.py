@@ -10,6 +10,8 @@ class PileogramDataset(Dataset):
         self.path_list = []
         self.label_list = []
         self.transform = transform
+        self.dir_nonchimeric = dir_nonchimeric
+        self.dir_chimeric = dir_chimeric
 
         for file in os.listdir(dir_nonchimeric):
             self.path_list.append(os.path.join(dir_nonchimeric, file))
@@ -23,7 +25,7 @@ class PileogramDataset(Dataset):
         # return len(self.path_list)
 
     def __getitem__(self, idx):
-        if idx < len(self.path_list):
+        if type(idx) == int:
             image = Image.open(self.path_list[idx])
             label = self.label_list[idx]
             path = str(self.path_list[idx])
@@ -31,15 +33,8 @@ class PileogramDataset(Dataset):
                 image = self.transform(image)
             sample = {'image': image, 'label': label, 'path': path}
             return sample
-        else:
-            pass
-            # horizontal_flip = transforms.RandomHorizontalFlip(p=1.0)
-            # image = Image.open(self.path_list[idx - len(self.path_list)])
-            # image = horizontal_flip(image)
-            # label = self.label_list[idx - len(self.path_list)]
-            # path = str(self.path_list[idx - len(self.path_list)])
-            # path = path[:-4] + '_flipped' + path[-4:]
-            # if self.transform:
-            #     image = self.transform(image)
-            # sample = {'image': image, 'label': label, 'path': path}
-            # return sample
+        if type(idx) == slice:
+            new_ds = PileogramDataset(self.dir_nonchimeric, self.dir_chimeric, self.transform)
+            new_ds.path_list = new_ds.path_list[idx]
+            new_ds.label_list = new_ds.label_list[idx]
+            return new_ds

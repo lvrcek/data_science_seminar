@@ -182,14 +182,24 @@ def train():
     ds_np = ds_full[5000:]
 
     net.eval()
-    feature_extractor = torch.nn.Sequential(*list(net.children())[:-1])
+    descriptors, targets = [], []
+    feature_extractor = torch.nn.Sequential(*list(net.model.children())[:-1])
     for data in ds_np:
-        image = data['image'].to(device)
-        label = data['label'].to(device)
-        feature = feature_extractor(image)
-        print(image.shape)
-        print(type(label))
-        print(label.shape)
+        image = data['image'].to(device).unsqueeze(0)
+        label = data['label']
+        feature = feature_extractor(image).squeeze().squeeze().squeeze().detach().cpu().numpy()
+        target = np.array([label])
+        descriptors.append(feature)
+        targets.append(target)
+        # print(image.shape)
+        # print(type(label))
+        # print(feature.shape)
+    descriptors = np.array(descriptors)
+    targets = np.array(targets)
+    with open('data/descriptors.npy', 'wb') as f1, open('data/targets.npy', 'wb') as f2:
+        np.save(f1, descriptors, allow_pickle=True)
+        np.save(f2, targets, allow_pickle=True)
+    
 
     
 
