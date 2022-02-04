@@ -7,6 +7,17 @@ import torch.optim as optim
 import torch.nn as nn
 import torchvision.transforms as transforms
 
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn import metrics
+from xgboost import XGBClassifier
+
+import joblib
+
 from model import ResNet18
 from pileogram import PileogramDataset
 # import visualizer
@@ -17,6 +28,8 @@ CHIMERIC_TRAIN = "./2d/chimeric"
 EPOCHS = 30
 BATCH = 128
 PARAM_PATH = 'trained_models/params_res18.pt'
+TRAIN_SAMPLES = 8373
+
 
 types = {
     0: 'RP',
@@ -40,6 +53,7 @@ def print_confusion(conf_rep, conf_chim, conf_norm, conf_junk):
           % (conf_junk[0], conf_junk[1], conf_junk[2], conf_junk[3]))
 
 
+# Train the ResNet to get the descriptors
 def train():
     start_time = time()
     torch.manual_seed(7)
@@ -54,16 +68,16 @@ def train():
     ])
 
     ds_full = PileogramDataset(NONCHIMERIC_TRAIN, CHIMERIC_TRAIN, transform=transform)
-    ds = ds_full[:5000]
+    ds = ds_full[:TRAIN_SAMPLES]
     num_samples = len(ds)
-    val_size = test_size = round(num_samples * 0.2)
-    train_size = num_samples - val_size - test_size
-    ds_train, ds_val, ds_test = random_split(ds, [train_size, val_size, test_size])
+    val_size = round(num_samples * 0.2)
+    train_size = num_samples - val_size
+    ds_train, ds_val = random_split(ds, [train_size, val_size])
     dl_train = DataLoader(ds_train, batch_size=BATCH, shuffle=True, num_workers=2, pin_memory=True)
     dl_val = DataLoader(ds_val, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
-    dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
+    # dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
 
-    net = ResNet18(num_classes=2)
+    net = ResNet18()
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')  # Use cuda if possible
     # device = torch.device('cpu')  # Force using cpu
     print(f"Using device: {device}")
@@ -152,17 +166,18 @@ def train():
     guess_junk = []
     eval_time_start = time()
 
-    with torch.no_grad():
-        for data in dl_test:
-            images = data['image'].to(device, non_blocking=True)
-            labels = data['label'].to(device, non_blocking=True).float()
-            paths = data['path'][0]
-            # print(paths)
-            # print(type(paths))
-            outputs = net(images).squeeze(-1)
-            total += labels.size(0)
-            predicted = torch.sigmoid(outputs).round()
-            correct += (predicted == labels).sum().item()
+    # Don't need this junk
+    # with torch.no_grad():
+    #     for data in dl_test:
+    #         images = data['image'].to(device, non_blocking=True)
+    #         labels = data['label'].to(device, non_blocking=True).float()
+    #         paths = data['path'][0]
+    #         # print(paths)
+    #         # print(type(paths))
+    #         outputs = net(images).squeeze(-1)
+    #         total += labels.size(0)
+    #         predicted = torch.sigmoid(outputs).round()
+    #         correct += (predicted == labels).sum().item()
 
     eval_time_end = time()
     print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
@@ -179,12 +194,32 @@ def train():
 
     # print_confusion(conf_repeat, conf_chim, conf_regular, conf_junk)
 
-    ds_np = ds_full[5000:]
 
+
+    # Here I have to test the linear classifier (logistic regression)
+    # Which is equivalent to simply evaluating with the last layer of resnet18
+
+    # The rest is the test set
+    ds_test = ds_full[TRAIN_SAMPLES:]
+    dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
+    with torch.no_grad():
+        for data in dl_test:
+            images = data['image'].to(device, non_blocking=True)
+            labels = data['label'].to(device, non_blocking=True).float()
+            paths = data['path'][0]
+            # print(paths)
+            # print(type(paths))
+            outputs = net(images).squeeze(-1)
+            total += labels.size(0)
+            predicted = torch.sigmoid(outputs).round()
+            correct += (predicted == labels).sum().item()
+
+    # Just translate all the descriptors into numpy
+    # This is very slow, I should find a better way to do it
     net.eval()
     descriptors, targets = [], []
     feature_extractor = torch.nn.Sequential(*list(net.model.children())[:-1])
-    for data in ds_np:
+    for data in ds_full:
         image = data['image'].to(device).unsqueeze(0)
         label = data['label']
         feature = feature_extractor(image).squeeze().squeeze().squeeze().detach().cpu().numpy()
@@ -201,7 +236,69 @@ def train():
         np.save(f2, targets, allow_pickle=True)
     
 
-    
+    # Now just train new models on the train dataset, and evaluate on the test dataset
+    X_train, X_test = descriptors[:TRAIN_SAMPLES], descriptors[TRAIN_SAMPLES:]
+    y_train, y_test = targets[:TRAIN_SAMPLES], targets[TRAIN_SAMPLES:]
+
+    threads = 1
+
+    print('SVC:')
+    clf = SVC()
+    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    best_model = clf
+    best_accuracy = accuracy
+    joblib.dump(clf, f'classifiers/svm_clf.joblib')
+
+    # print('Logistic regression:')
+    # clf = LogisticRegression()
+    # accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    # joblib.dump(clf, f'classifiers/logr_clf.joblib')
+    # if accuracy > best_accuracy:
+    #     best_accuracy = accuracy
+    #     best_model = clf
+
+    # print('K-nearest neighbors:')
+    # clf = KNeighborsClassifier()
+    # accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    # joblib.dump(clf, f'classifiers/knn_clf.joblib')
+    # if accuracy > best_accuracy:
+    #     best_accuracy = accuracy
+    #     best_model = clf
+
+    print('Random forest:')
+    clf = RandomForestClassifier(n_jobs=threads, n_estimators=800, max_depth=30)
+    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    joblib.dump(clf, f'classifiers/forest_clf.joblib')
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_model = clf
+
+    # print('Decision tree:')
+    # clf = DecisionTreeClassifier()
+    # accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    # joblib.dump(clf, f'classifiers/tree_clf.joblib')
+    # if accuracy > best_accuracy:
+    #     best_accuracy = accuracy
+    #     best_model = clf
+
+    print('XGBoost:')
+    clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=50, use_label_encoder=False, eval_metric='logloss')
+    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    joblib.dump(clf, f'classifiers/xgboost_clf.joblib')
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_model = clf
+
+    print(best_model)
+    print(best_accuracy)
+
+
+def train_model(model, X_train, X_test, y_train, y_test):
+    model = model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    print(metrics.classification_report(y_test, y_pred))
+    return metrics.accuracy_score(y_test, y_pred)
+
 
 if __name__ == '__main__':
     train()

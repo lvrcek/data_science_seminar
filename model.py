@@ -17,7 +17,7 @@ import torchvision.models as models
 
 class ResNet18(nn.Module):
 
-    def __init__(self, num_classes):
+    def __init__(self):
         super(ResNet18, self).__init__()
         self.model = models.resnet18(pretrained=True)
         weight = self.model.conv1.weight.clone()

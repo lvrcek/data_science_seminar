@@ -1,4 +1,6 @@
 import os
+import random
+
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
@@ -19,6 +21,10 @@ class PileogramDataset(Dataset):
         for file in os.listdir(dir_chimeric):
             self.path_list.append(os.path.join(dir_chimeric, file))
             self.label_list.append(1)
+
+        tmp = list(zip(self.path_list, self.label_list))
+        random.shuffle(tmp)
+        self.path_list, self.label_list = zip(*tmp)
 
     def __len__(self):
         return len(self.path_list)
