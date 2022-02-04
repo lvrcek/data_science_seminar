@@ -1,6 +1,7 @@
 # from tqdm import tqdm
 from time import time
 import numpy as np
+import random
 import torch
 from torch.utils.data import DataLoader, random_split
 import torch.optim as optim
@@ -53,12 +54,17 @@ def print_confusion(conf_rep, conf_chim, conf_norm, conf_junk):
           % (conf_junk[0], conf_junk[1], conf_junk[2], conf_junk[3]))
 
 
+def set_seed(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+
 # Train the ResNet to get the descriptors
 def train():
     start_time = time()
-    torch.manual_seed(7)
-    #np.random.seed(0)
-    mode = 'valid'
+    set_seed()
+    mode = 'train'
 
     transform = transforms.Compose([
         transforms.Grayscale(),
