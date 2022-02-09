@@ -2,6 +2,7 @@
 from time import time
 import numpy as np
 import random
+import re
 import torch
 from torch.utils.data import DataLoader, random_split
 import torch.optim as optim
@@ -23,6 +24,7 @@ import joblib
 from model import ResNet18
 from pileogram import PileogramDataset
 import visualizer
+
 
 NONCHIMERIC_TRAIN = "./2d/nonchimeric"
 CHIMERIC_TRAIN = "./2d/chimeric"
@@ -228,22 +230,31 @@ def train_classifiers():
 
     threads = 1
 
-    print('SVC:')
-    clf = SVC()
-    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
-    best_model = clf
-    best_accuracy = accuracy
-    joblib.dump(clf, f'classifiers/svm_clf.joblib')
-    print(accuracy)
+    svc = True
+    logreg = True
+    forest = True
+    xgboost = True
 
-    print('Logistic regression:')
-    clf = LogisticRegression()
-    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
-    joblib.dump(clf, f'classifiers/logr_clf.joblib')
-    print(accuracy)
-    if accuracy > best_accuracy:
-        best_accuracy = accuracy
+    best_accuracy = 0
+
+    if svc:
+        print('SVC:')
+        clf = SVC()
+        accuracy = train_model(clf, X_train, X_test, y_train, y_test)
         best_model = clf
+        best_accuracy = accuracy
+        joblib.dump(clf, f'classifiers/svm_clf.joblib')
+        print(accuracy)
+
+    if logreg:
+        print('Logistic regression:')
+        clf = LogisticRegression()
+        accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+        joblib.dump(clf, f'classifiers/logr_clf.joblib')
+        print(accuracy)
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = clf
 
     # print('K-nearest neighbors:')
     # clf = KNeighborsClassifier()
@@ -253,14 +264,15 @@ def train_classifiers():
     #     best_accuracy = accuracy
     #     best_model = clf
 
-    print('Random forest:')
-    clf = RandomForestClassifier(n_jobs=threads, n_estimators=800, max_depth=30)
-    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
-    joblib.dump(clf, f'classifiers/forest_clf.joblib')
-    print(accuracy)
-    if accuracy > best_accuracy:
-        best_accuracy = accuracy
-        best_model = clf
+    if forest:
+        print('Random forest:')
+        clf = RandomForestClassifier(n_jobs=threads, n_estimators=800, max_depth=30)
+        accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+        joblib.dump(clf, f'classifiers/forest_clf.joblib')
+        print(accuracy)
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = clf
 
     # print('Decision tree:')
     # clf = DecisionTreeClassifier()
@@ -270,14 +282,15 @@ def train_classifiers():
     #     best_accuracy = accuracy
     #     best_model = clf
 
-    print('XGBoost:')
-    clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=50, use_label_encoder=False, eval_metric='logloss')
-    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
-    joblib.dump(clf, f'classifiers/xgboost_clf.joblib')
-    print(accuracy)
-    if accuracy > best_accuracy:
-        best_accuracy = accuracy
-        best_model = clf
+    if xgboost:
+        print('XGBoost:')
+        clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=50, use_label_encoder=False, eval_metric='logloss')
+        accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+        joblib.dump(clf, f'classifiers/xgboost_clf.joblib')
+        print(accuracy)
+        if accuracy > best_accuracy:
+            best_accuracy = accuracy
+            best_model = clf
 
     print(best_model)
     print(best_accuracy)
@@ -288,16 +301,16 @@ def train_model(model, X_train, X_test, y_train, y_test):
     y_pred = model.predict(X_test)
     print(metrics.classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
-    visualizer.plt_confusion_matrix(y_test, y_pred, str(model)[:-2])
+    model_name = re.findall(r'([a-zA-Z]*)\(', str(model)) 
+    visualizer.plt_confusion_matrix(y_test, y_pred, model_name)
     return metrics.accuracy_score(y_test, y_pred)
 
 
 def main():
     set_seed()
-    train_nn()
+    # train_nn()
     train_classifiers()
 
 
 if __name__ == '__main__':
     main()
-    # extract()
