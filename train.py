@@ -301,7 +301,7 @@ def train_model(model, X_train, X_test, y_train, y_test):
     y_pred = model.predict(X_test)
     print(metrics.classification_report(y_test, y_pred))
     print(confusion_matrix(y_test, y_pred))
-    model_name = re.findall(r'([a-zA-Z]*)\(', str(model)) 
+    model_name = re.findall(r'([a-zA-Z]*)\(', str(model))[0] 
     visualizer.plt_confusion_matrix(y_test, y_pred, model_name)
     return metrics.accuracy_score(y_test, y_pred)
 
