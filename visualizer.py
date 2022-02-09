@@ -35,7 +35,7 @@ def draw_accuracy_curve(acc_train, acc_valid):
     # plt.show()
 
 def do_pca(X, y, path):
-    pca = PCA(num_components=2)
+    pca = PCA(n_components=2)
     # descriptors = np.load(f'{path}/descriptors.npy', allow_pickle=True)
     # labels = np.load(f'{path}/targets.npy', allow_pickle=True)
     X_0 = X[(y==0).squeeze()]
