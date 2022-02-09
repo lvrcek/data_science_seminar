@@ -1,4 +1,8 @@
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
+import numpy as np
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
 
 
 def draw_training_curve(history_train, history_test):
@@ -28,4 +32,44 @@ def draw_accuracy_curve(acc_train, acc_valid):
     plt.ylabel("Accuracy")
     plt.legend()
     plt.savefig('accuracy.png')
-#    plt.show()
+    # plt.show()
+
+def do_pca(X, y, path):
+    pca = PCA(num_components=2)
+    # descriptors = np.load(f'{path}/descriptors.npy', allow_pickle=True)
+    # labels = np.load(f'{path}/targets.npy', allow_pickle=True)
+    X_0 = X[(y==0).squeeze()]
+    X_1 = X[(y==1).squeeze()]
+    plt.figure()
+    plt.scatter(X_0[:, 0], X_0[:, 1], color='#F8776D', marker='o', s=10, edgecolors='black', linewidths=0.5)
+    plt.scatter(X_1[:, 0], X_1[:, 1], color='#01BFC4', marker='o', s=10, edgecolors='black', linewidths=0.5)
+    plt.grid()
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+    plt.savefig(path)
+    
+
+def plt_confusion_matrix(y_test, y_pred, title):
+    # https://stackoverflow.com/questions/20927368/how-to-normalize-a-confusion-matrix
+
+    cm = confusion_matrix(y_test, y_pred)
+    # Normalise
+    cmn = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    
+    f, axes = plt.subplots(1, 2,figsize=(9,3))
+    
+    if len(title) != 0:
+        f.suptitle(title,fontsize=20,y=1.05)
+        
+    sns.heatmap(cm, annot=True, fmt='d',cmap=plt.cm.Reds,ax=axes[0])
+    
+    axes[0].set_ylabel('True Label')
+    axes[0].set_xlabel('Predicted Label')
+    
+    sns.heatmap(cmn, annot=True, fmt='.2f',cmap=plt.cm.Blues,ax=axes[1])
+    
+    axes[1].set_ylabel('True Label')
+    axes[1].set_xlabel('Predicted Label')
+        
+    # plt.show(block=False)
+    plt.savefig(f'matrix/{title}.png')

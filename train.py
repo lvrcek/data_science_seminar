@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn import metrics
 from xgboost import XGBClassifier
+from sklearn.metrics import confusion_matrix
 
 import joblib
 
@@ -64,7 +65,7 @@ def set_seed(seed=0):
 def train():
     start_time = time()
     set_seed()
-    mode = 'train'
+    mode = 'eval'
 
     transform = transforms.Compose([
         transforms.Grayscale(),
@@ -206,19 +207,20 @@ def train():
     dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
     with torch.no_grad():
         for data in dl_test:
-            images = data['image'].to(device, non_blocking=True)
-            labels = data['label'].to(device, non_blocking=True).float()
-            paths = data['path'][0]
+            continue
+            # images = data['image'].to(device, non_blocking=True)
+            # labels = data['label'].to(device, non_blocking=True).float()
+            # paths = data['path'][0]
             # print(paths)
             # print(type(paths))
-            outputs = net(images).squeeze(-1)
-            total += labels.size(0)
-            predicted = torch.sigmoid(outputs).round()
-            correct += (predicted == labels).sum().item()
+            # outputs = net(images).squeeze(-1)
+            # total += labels.size(0)
+            # predicted = torch.sigmoid(outputs).round()
+            # correct += (predicted == labels).sum().item()
 
     eval_time_end = time()
-    print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
-    print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
+    # print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
+    # print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
 
     # Just translate all the descriptors into numpy
     # This is very slow, I should find a better way to do it
@@ -226,6 +228,7 @@ def train():
     descriptors, targets = [], []
     feature_extractor = torch.nn.Sequential(*list(net.model.children())[:-1])
     for data in ds_full:
+        continue
         image = data['image'].to(device).unsqueeze(0)
         label = data['label']
         feature = feature_extractor(image).squeeze().squeeze().squeeze().detach().cpu().numpy()
@@ -235,16 +238,24 @@ def train():
         # print(image.shape)
         # print(type(label))
         # print(feature.shape)
-    descriptors = np.array(descriptors)
-    targets = np.array(targets)
-    with open('data/descriptors.npy', 'wb') as f1, open('data/targets.npy', 'wb') as f2:
-        np.save(f1, descriptors, allow_pickle=True)
-        np.save(f2, targets, allow_pickle=True)
+    # descriptors = np.array(descriptors)
+    # targets = np.array(targets)
+    # with open('data/descriptors.npy', 'wb') as f1, open('data/targets.npy', 'wb') as f2:
+    #     np.save(f1, descriptors, allow_pickle=True)
+    #     np.save(f2, targets, allow_pickle=True)
     
+
+    descriptors = np.load('data/descriptors.npy', allow_pickle=True)
+    targets = np.load('data/targets.npy', allow_pickle=True)
 
     # Now just train new models on the train dataset, and evaluate on the test dataset
     X_train, X_test = descriptors[:TRAIN_SAMPLES], descriptors[TRAIN_SAMPLES:]
     y_train, y_test = targets[:TRAIN_SAMPLES], targets[TRAIN_SAMPLES:]
+
+
+    # PCA
+    visualizer.do_pca(X_train, y_train, 'pca/train.png')
+    visualizer.do_pca(X_test, y_test, 'pca/test.png')
 
     threads = 1
 
@@ -255,13 +266,13 @@ def train():
     best_accuracy = accuracy
     joblib.dump(clf, f'classifiers/svm_clf.joblib')
 
-    # print('Logistic regression:')
-    # clf = LogisticRegression()
-    # accuracy = train_model(clf, X_train, X_test, y_train, y_test)
-    # joblib.dump(clf, f'classifiers/logr_clf.joblib')
-    # if accuracy > best_accuracy:
-    #     best_accuracy = accuracy
-    #     best_model = clf
+    print('Logistic regression:')
+    clf = LogisticRegression()
+    accuracy = train_model(clf, X_train, X_test, y_train, y_test)
+    joblib.dump(clf, f'classifiers/logr_clf.joblib')
+    if accuracy > best_accuracy:
+        best_accuracy = accuracy
+        best_model = clf
 
     # print('K-nearest neighbors:')
     # clf = KNeighborsClassifier()
@@ -303,6 +314,8 @@ def train_model(model, X_train, X_test, y_train, y_test):
     model = model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
     print(metrics.classification_report(y_test, y_pred))
+    print(confusion_matrix(y_test, y_pred))
+    visualizer.plt_confusion_matrix(y_test, y_pred, str(model)[:-2])
     return metrics.accuracy_score(y_test, y_pred)
 
 

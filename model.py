@@ -19,7 +19,7 @@ class ResNet18(nn.Module):
 
     def __init__(self):
         super(ResNet18, self).__init__()
-        self.model = models.resnet18(pretrained=True)
+        self.model = models.resnet18(pretrained=False)
         weight = self.model.conv1.weight.clone()
         self.model.conv1 = nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         with torch.no_grad():
