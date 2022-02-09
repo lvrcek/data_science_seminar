@@ -32,6 +32,7 @@ BATCH = 128
 PARAM_PATH = 'trained_models/params_res18.pt'
 TRAIN_SAMPLES = 8373
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 types = {
     0: 'RP',
@@ -62,7 +63,7 @@ def set_seed(seed=0):
 
 
 # Train the ResNet to get the descriptors
-def train():
+def train_nn():
     start_time = time()
     set_seed()
     mode = 'eval'
@@ -85,7 +86,7 @@ def train():
     # dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
 
     net = ResNet18()
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')  # Use cuda if possible
+    # device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')  # Use cuda if possible
     # device = torch.device('cpu')  # Force using cpu
     print(f"Using device: {device}")
     net.to(device)
@@ -167,84 +168,52 @@ def train():
     total = 0
     net.load_state_dict(torch.load(PARAM_PATH))
     net.eval()
-    guess_repeat = []
-    guess_chim = []
-    guess_regular = []
-    guess_junk = []
     eval_time_start = time()
 
-    # Don't need this junk
-    # with torch.no_grad():
-    #     for data in dl_test:
-    #         images = data['image'].to(device, non_blocking=True)
-    #         labels = data['label'].to(device, non_blocking=True).float()
-    #         paths = data['path'][0]
-    #         # print(paths)
-    #         # print(type(paths))
-    #         outputs = net(images).squeeze(-1)
-    #         total += labels.size(0)
-    #         predicted = torch.sigmoid(outputs).round()
-    #         correct += (predicted == labels).sum().item()
-
-    # conf_repeat = (sum([l == 0 for l in guess_repeat]), sum([l == 1 for l in guess_repeat]),
-    #                sum([l == 2 for l in guess_repeat]), sum([l == 3 for l in guess_repeat]))
-    # conf_chim = (sum([l == 0 for l in guess_chim]), sum([l == 1 for l in guess_chim]),
-    #              sum([l == 2 for l in guess_chim]), sum([l == 3 for l in guess_chim]))
-    # conf_regular = (sum([l == 0 for l in guess_regular]), sum([l == 1 for l in guess_regular]),
-    #                sum([l == 2 for l in guess_regular]), sum([l == 3 for l in guess_regular]))
-    # conf_junk = (sum([l == 0 for l in guess_junk]), sum([l == 1 for l in guess_junk]),
-    #                sum([l == 2 for l in guess_junk]), sum([l == 3 for l in guess_junk]))
-
-    # print_confusion(conf_repeat, conf_chim, conf_regular, conf_junk)
-
-
-
-    # Here I have to test the linear classifier (logistic regression)
-    # Which is equivalent to simply evaluating with the last layer of resnet18
-
-    # The rest is the test set
+    # TEST
     ds_test = ds_full[TRAIN_SAMPLES:]
     dl_test = DataLoader(ds_test, batch_size=BATCH, shuffle=False, num_workers=2, pin_memory=True)
     with torch.no_grad():
         for data in dl_test:
-            continue
-            # images = data['image'].to(device, non_blocking=True)
-            # labels = data['label'].to(device, non_blocking=True).float()
-            # paths = data['path'][0]
-            # print(paths)
-            # print(type(paths))
-            # outputs = net(images).squeeze(-1)
-            # total += labels.size(0)
-            # predicted = torch.sigmoid(outputs).round()
-            # correct += (predicted == labels).sum().item()
+            images = data['image'].to(device, non_blocking=True)
+            labels = data['label'].to(device, non_blocking=True).float()
+            paths = data['path'][0]
+            print(paths)
+            print(type(paths))
+            outputs = net(images).squeeze(-1)
+            total += labels.size(0)
+            predicted = torch.sigmoid(outputs).round()
+            correct += (predicted == labels).sum().item()
 
     eval_time_end = time()
-    # print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
-    # print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
+    print(f"Accuracy of the network on the test set: {100 * correct / total}%.")
+    print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
 
-    # Just translate all the descriptors into numpy
-    # This is very slow, I should find a better way to do it
+
+
+def extract_descriptors(net, ds_full, device):
+    net = ResNet18()
+    net.load_state_dict(torch.load(PARAM_PATH))
     net.eval()
     descriptors, targets = [], []
     feature_extractor = torch.nn.Sequential(*list(net.model.children())[:-1])
     for data in ds_full:
-        continue
         image = data['image'].to(device).unsqueeze(0)
         label = data['label']
         feature = feature_extractor(image).squeeze().squeeze().squeeze().detach().cpu().numpy()
         target = np.array([label])
         descriptors.append(feature)
         targets.append(target)
-        # print(image.shape)
-        # print(type(label))
-        # print(feature.shape)
-    # descriptors = np.array(descriptors)
-    # targets = np.array(targets)
-    # with open('data/descriptors.npy', 'wb') as f1, open('data/targets.npy', 'wb') as f2:
-    #     np.save(f1, descriptors, allow_pickle=True)
-    #     np.save(f2, targets, allow_pickle=True)
+
+    descriptors = np.array(descriptors)
+    targets = np.array(targets)
+    with open('data/descriptors.npy', 'wb') as f1, open('data/targets.npy', 'wb') as f2:
+        np.save(f1, descriptors, allow_pickle=True)
+        np.save(f2, targets, allow_pickle=True)
     
 
+
+def train_classifiers():
     descriptors = np.load('data/descriptors.npy', allow_pickle=True)
     targets = np.load('data/targets.npy', allow_pickle=True)
 
@@ -265,11 +234,13 @@ def train():
     best_model = clf
     best_accuracy = accuracy
     joblib.dump(clf, f'classifiers/svm_clf.joblib')
+    print(accuracy)
 
     print('Logistic regression:')
     clf = LogisticRegression()
     accuracy = train_model(clf, X_train, X_test, y_train, y_test)
     joblib.dump(clf, f'classifiers/logr_clf.joblib')
+    print(accuracy)
     if accuracy > best_accuracy:
         best_accuracy = accuracy
         best_model = clf
@@ -286,6 +257,7 @@ def train():
     clf = RandomForestClassifier(n_jobs=threads, n_estimators=800, max_depth=30)
     accuracy = train_model(clf, X_train, X_test, y_train, y_test)
     joblib.dump(clf, f'classifiers/forest_clf.joblib')
+    print(accuracy)
     if accuracy > best_accuracy:
         best_accuracy = accuracy
         best_model = clf
@@ -302,6 +274,7 @@ def train():
     clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=50, use_label_encoder=False, eval_metric='logloss')
     accuracy = train_model(clf, X_train, X_test, y_train, y_test)
     joblib.dump(clf, f'classifiers/xgboost_clf.joblib')
+    print(accuracy)
     if accuracy > best_accuracy:
         best_accuracy = accuracy
         best_model = clf
@@ -319,6 +292,12 @@ def train_model(model, X_train, X_test, y_train, y_test):
     return metrics.accuracy_score(y_test, y_pred)
 
 
+def main():
+    set_seed()
+    train_nn()
+    train_classifiers()
+
+
 if __name__ == '__main__':
-    train()
+    main()
     # extract()
