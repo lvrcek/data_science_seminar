@@ -34,6 +34,69 @@ def draw_accuracy_curve(acc_train, acc_valid):
     plt.savefig('accuracy.png')
     # plt.show()
 
+
+def parse_out(filename='out.txt'):
+    with open(filename) as f:
+        train_loss = []
+        valid_loss = []
+        train_acc = []
+        valid_acc = []
+        min_loss = 10
+        for line in f.readlines():
+            if len(line.strip()) == 0:
+                continue
+            line = line.strip().split()
+            if line[2] == 'Train':
+                train_loss.append(float(line[5]))
+                train_acc.append(float(line[-1][:-1]))
+                continue
+            epoch = int(line[1][:-1])
+            loss = float(line[5][:-1])
+            valid_loss.append(loss)
+            valid_acc.append(float(line[-1][:-1]))
+            if loss < min_loss:
+                min_loss = loss
+                min_epoch = epoch
+    min_epoch = 27
+    return train_loss, valid_loss, train_acc, valid_acc, min_epoch
+    
+
+def draw_loss_2(filename='out.txt'):
+    plt.figure()
+    train_loss, valid_loss, train_acc, valid_acc, epoch = parse_out(filename)
+    epochs = list(range(1, 51))
+    loss_train = train_loss
+    loss_test = valid_loss
+    plt.plot(epochs, loss_train, label='Train')
+    plt.plot(epochs, loss_test, label='Validation')
+    # plt.title("Model loss over epochs")
+    plt.axvline(x=epoch, color='red', ls='--', label='Saved model')
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig('loss_2.png')
+#    plt.show()
+
+
+def draw_acc_2(filename='out.txt'):
+    plt.figure()
+    train_loss, valid_loss, train_acc, valid_acc, epoch = parse_out(filename)
+    epochs = list(range(1, 51))
+    acc_train = train_acc
+    acc_valid = valid_acc
+    plt.plot(epochs, acc_train, label='Train')
+    plt.plot(epochs, acc_valid, label='Validation')
+    plt.axvline(x=epoch, color='red', ls='--', label='Saved model')
+    # plt.title("Model accuracy over epochs")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.savefig('accuracy_2.png')
+    # plt.show()
+
+
+
+
 def do_pca(X, y, path):
     pca = PCA(n_components=2)
     # descriptors = np.load(f'{path}/descriptors.npy', allow_pickle=True)
@@ -58,8 +121,8 @@ def plt_confusion_matrix(y_test, y_pred, title):
     
     f, axes = plt.subplots(1, 2,figsize=(9,3))
     
-    if len(title) != 0:
-        f.suptitle(title,fontsize=20,y=1.05)
+    # if len(title) != 0:
+    #     f.suptitle(title,fontsize=20,y=1.05)
         
     sns.heatmap(cm, annot=True, fmt='d',cmap=plt.cm.Reds,ax=axes[0])
     
