@@ -32,30 +32,26 @@ CHIMERIC_TRAIN = "./2d/chimeric"
 EPOCHS = 50
 BATCH = 128
 PARAM_PATH = 'trained_models/params_res18.pt'
-TRAIN_SAMPLES = 8373
+
+
+SPECIES = {
+    'bs': (0, 3714),
+    'cn': (3714, 4342),
+    'ec': (4342, 7678),
+    'ef': (7678, 11572),
+    'lf': (11572, 15184),
+    'lm': (15184, 18576),
+    'pa': (18576, 22674),
+    'sa': (22674, 26288),
+    'sc': (26288, 26936),
+    'se': (26936, 32618),
+}
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-types = {
-    0: 'RP',
-    1: 'CH',
-    2: 'RG',
-    3: 'JK',
-}
-
-
-def print_confusion(conf_rep, conf_chim, conf_norm, conf_junk):
-    print("%42s" % ('Predicted'))
-    print(" " * 21 + "_" * 33)
-    print(" " * 20 + "|%10s|%10s|%10s|%10s|" % ('Repeats', 'Chimeric', 'Normal', "Junk"))
-    print(" " * 9 + "|" + "%10s" % ('Repeats') + "|%10d|%10d|%10d|%10d|"
-          % (conf_rep[0], conf_rep[1], conf_rep[2], conf_rep[3]))
-    print("True" + " " * 5 + "|" + "%10s" % ('Chimeric') + "|%10d|%10d|%10d|%10d|"
-          % (conf_chim[0], conf_chim[1], conf_chim[2], conf_chim[3]))
-    print(" " * 9 + "|" + "%10s" % ('Normal') + "|%10d|%10d|%10d|%10d|"
-          % (conf_norm[0], conf_norm[1], conf_norm[2], conf_norm[3]))
-    print(" " * 9 + "|" + "%10s" % ('Junk') + "|%10d|%10d|%10d|%10d|"
-          % (conf_junk[0], conf_junk[1], conf_junk[2], conf_junk[3]))
+TRAIN_SPECIES = ['bs', 'cn', 'ec', 'ef', 'lf']
+TEST_SPECIES  = ['lm', 'pa', 'sa', 'sc', 'se']
+TRAIN_SAMPLES = sum([SPECIES[s][1] - SPECIES[s][0] for s in TRAIN_SPECIES])  # 15184
 
 
 def set_seed(seed=0):
@@ -68,7 +64,7 @@ def set_seed(seed=0):
 def train_nn():
     start_time = time()
     set_seed()
-    mode = 'eval'
+    mode = 'train'
 
     transform = transforms.Compose([
         transforms.Grayscale(),
@@ -192,9 +188,16 @@ def train_nn():
     print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
 
 
-
-def extract_descriptors(net, ds_full, device):
+def extract_descriptors(ds_full):
+    transform = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize([224, 224]),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5])
+    ])
+    ds_full = PileogramDataset(NONCHIMERIC_TRAIN, CHIMERIC_TRAIN, transform=transform)
     net = ResNet18()
+    net.to(device)
     net.load_state_dict(torch.load(PARAM_PATH))
     net.eval()
     descriptors, targets = [], []
@@ -214,7 +217,6 @@ def extract_descriptors(net, ds_full, device):
         np.save(f2, targets, allow_pickle=True)
     
 
-
 def train_classifiers():
     descriptors = np.load('data/descriptors.npy', allow_pickle=True)
     targets = np.load('data/targets.npy', allow_pickle=True)
@@ -223,12 +225,11 @@ def train_classifiers():
     X_train, X_test = descriptors[:TRAIN_SAMPLES], descriptors[TRAIN_SAMPLES:]
     y_train, y_test = targets[:TRAIN_SAMPLES], targets[TRAIN_SAMPLES:]
 
-
     # PCA
     visualizer.do_pca(X_train, y_train, 'pca/train.png')
     visualizer.do_pca(X_test, y_test, 'pca/test.png')
 
-    threads = 1
+    threads = 16
 
     svc = True
     logreg = True
@@ -284,7 +285,7 @@ def train_classifiers():
 
     if xgboost:
         print('XGBoost:')
-        clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=50, use_label_encoder=False, eval_metric='logloss')
+        clf = XGBClassifier(n_jobs=threads, n_estimators=800, max_depth=30, use_label_encoder=False, eval_metric='logloss')
         accuracy = train_model(clf, X_train, X_test, y_train, y_test)
         joblib.dump(clf, f'classifiers/xgboost_clf.joblib')
         print(accuracy)
@@ -308,7 +309,8 @@ def train_model(model, X_train, X_test, y_train, y_test):
 
 def main():
     set_seed()
-    # train_nn()
+    train_nn()
+    extract_descriptors()
     train_classifiers()
 
 

@@ -15,20 +15,14 @@ class PileogramDataset(Dataset):
         self.dir_nonchimeric = dir_nonchimeric
         self.dir_chimeric = dir_chimeric
 
-        for file in os.listdir(dir_nonchimeric):
-            self.path_list.append(os.path.join(dir_nonchimeric, file))
+        for file1, file2 in zip(os.listdir(dir_nonchimeric), os.listdir(dir_chimeric)):
+            self.path_list.append(os.path.join(dir_nonchimeric, file1))
             self.label_list.append(0)
-        for file in os.listdir(dir_chimeric):
-            self.path_list.append(os.path.join(dir_chimeric, file))
-            self.label_list.append(1)
-
-        tmp = list(zip(self.path_list, self.label_list))
-        random.shuffle(tmp)
-        self.path_list, self.label_list = zip(*tmp)
+            self.path_list.append(os.path.join(dir_chimeric, file2))
+            self.label_list(1)
 
     def __len__(self):
         return len(self.path_list)
-        # return len(self.path_list)
 
     def __getitem__(self, idx):
         if type(idx) == int:
