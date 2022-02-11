@@ -19,7 +19,7 @@ class PileogramDataset(Dataset):
             self.path_list.append(os.path.join(dir_nonchimeric, file1))
             self.label_list.append(0)
             self.path_list.append(os.path.join(dir_chimeric, file2))
-            self.label_list(1)
+            self.label_list.append(1)
 
     def __len__(self):
         return len(self.path_list)
