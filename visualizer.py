@@ -36,6 +36,7 @@ def draw_accuracy_curve(acc_train, acc_valid):
 
 
 def parse_out(filename='out.txt'):
+    flag = False
     with open(filename) as f:
         train_loss = []
         valid_loss = []
@@ -46,6 +47,11 @@ def parse_out(filename='out.txt'):
             if len(line.strip()) == 0:
                 continue
             line = line.strip().split()
+            if 'Epoch' not in line[0] and flag:
+                break
+            if 'Epoch' not in line[0] and not flag:
+                continue
+            flag = True
             if line[2] == 'Train':
                 train_loss.append(float(line[5]))
                 train_acc.append(float(line[-1][:-1]))
@@ -57,13 +63,17 @@ def parse_out(filename='out.txt'):
             if loss < min_loss:
                 min_loss = loss
                 min_epoch = epoch
-    min_epoch = 27
+    min_epoch = 33
     return train_loss, valid_loss, train_acc, valid_acc, min_epoch
     
 
 def draw_loss_2(filename='out.txt'):
     plt.figure()
     train_loss, valid_loss, train_acc, valid_acc, epoch = parse_out(filename)
+    print(len(train_loss))
+    print(train_loss)
+    print(epoch)
+    print(valid_loss)
     epochs = list(range(1, 51))
     loss_train = train_loss
     loss_test = valid_loss
@@ -73,8 +83,9 @@ def draw_loss_2(filename='out.txt'):
     plt.axvline(x=epoch, color='red', ls='--', label='Saved model')
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
+    plt.grid()
     plt.legend()
-    plt.savefig('loss_2.png')
+    plt.savefig('loss_3.png')
 #    plt.show()
 
 
@@ -90,8 +101,9 @@ def draw_acc_2(filename='out.txt'):
     # plt.title("Model accuracy over epochs")
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
+    plt.grid()
     plt.legend()
-    plt.savefig('accuracy_2.png')
+    plt.savefig('accuracy_3.png')
     # plt.show()
 
 
@@ -104,9 +116,10 @@ def do_pca(X, y, path):
     X_0 = X[(y==0).squeeze()]
     X_1 = X[(y==1).squeeze()]
     plt.figure()
-    plt.scatter(X_0[:, 0], X_0[:, 1], color='#F8776D', marker='o', s=10, edgecolors='black', linewidths=0.5)
-    plt.scatter(X_1[:, 0], X_1[:, 1], color='#01BFC4', marker='o', s=10, edgecolors='black', linewidths=0.5)
+    plt.scatter(X_0[:, 0], X_0[:, 1], color='#F8776D', marker='o', s=10, edgecolors='black', linewidths=0.5, label='0')
+    plt.scatter(X_1[:, 0], X_1[:, 1], color='#01BFC4', marker='o', s=10, edgecolors='black', linewidths=0.5, label='1')
     plt.grid()
+    plt.legend()
     plt.xlabel('PC1')
     plt.ylabel('PC2')
     plt.savefig(path)
@@ -135,4 +148,5 @@ def plt_confusion_matrix(y_test, y_pred, title):
     axes[1].set_xlabel('Predicted Label')
         
     # plt.show(block=False)
+    plt.tight_layout()
     plt.savefig(f'matrix/{title}.png')

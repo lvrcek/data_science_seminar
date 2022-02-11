@@ -1,6 +1,12 @@
 # Custom
 2d/
-trained_models/
+trained_models*/
+data*/
+pca*/
+matrix*/
+figures*/
+classifiers*/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

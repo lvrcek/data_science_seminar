@@ -188,7 +188,7 @@ def train_nn():
     print(f"Evalutaion time: {eval_time_end - eval_time_start} s.")
 
 
-def extract_descriptors(ds_full):
+def extract_descriptors():
     transform = transforms.Compose([
         transforms.Grayscale(),
         transforms.Resize([224, 224]),
@@ -228,13 +228,12 @@ def train_classifiers():
     # PCA
     visualizer.do_pca(X_train, y_train, 'pca/train.png')
     visualizer.do_pca(X_test, y_test, 'pca/test.png')
-
     threads = 16
 
-    svc = True
-    logreg = True
-    forest = True
-    xgboost = True
+    svc = False # True
+    logreg = False # True
+    forest = False # True
+    xgboost = False # True
 
     best_accuracy = 0
 
@@ -246,6 +245,12 @@ def train_classifiers():
         best_accuracy = accuracy
         joblib.dump(clf, f'classifiers/svm_clf.joblib')
         print(accuracy)
+    else:
+        clf = joblib.load('classifiers/svm_clf.joblib')
+        accuracy = predict(clf, X_train, X_test, y_train, y_test)
+        print(accuracy)
+
+
 
     if logreg:
         print('Logistic regression:')
@@ -256,6 +261,11 @@ def train_classifiers():
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             best_model = clf
+    else:
+        clf = joblib.load('classifiers/logr_clf.joblib')
+        accuracy = predict(clf, X_train, X_test, y_train, y_test)
+        print(accuracy)
+
 
     # print('K-nearest neighbors:')
     # clf = KNeighborsClassifier()
@@ -274,6 +284,11 @@ def train_classifiers():
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             best_model = clf
+    else:
+        clf = joblib.load('classifiers/forest_clf.joblib')
+        accuracy = predict(clf, X_train, X_test, y_train, y_test)
+        print(accuracy)
+
 
     # print('Decision tree:')
     # clf = DecisionTreeClassifier()
@@ -292,27 +307,41 @@ def train_classifiers():
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             best_model = clf
+    else:
+        clf = joblib.load('classifiers/xgboost_clf.joblib')
+        accuracy = predict(clf, X_train, X_test, y_train, y_test)
+        print(accuracy)
 
-    print(best_model)
-    print(best_accuracy)
+    # print(best_model)
+    # print(best_accuracy)
 
 
 def train_model(model, X_train, X_test, y_train, y_test):
     model = model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
-    print(metrics.classification_report(y_test, y_pred))
+    print(metrics.classification_report(y_test, y_pred, digits=4))
     print(confusion_matrix(y_test, y_pred))
     model_name = re.findall(r'([a-zA-Z]*)\(', str(model))[0] 
     visualizer.plt_confusion_matrix(y_test, y_pred, model_name)
     return metrics.accuracy_score(y_test, y_pred)
 
 
+def predict(model, X_train, X_test, y_train, y_test):
+    y_pred = model.predict(X_test)
+    print(metrics.classification_report(y_test, y_pred, digits=4))
+    print(confusion_matrix(y_test, y_pred))
+    model_name = re.findall(r'([a-zA-Z]*)\(', str(model))[0]
+    visualizer.plt_confusion_matrix(y_test, y_pred, model_name)
+    return metrics.accuracy_score(y_test, y_pred)
+
+
 def main():
     set_seed()
-    train_nn()
-    extract_descriptors()
+    # train_nn()
+    # extract_descriptors()
     train_classifiers()
 
 
 if __name__ == '__main__':
     main()
+
